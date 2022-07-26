@@ -22,7 +22,7 @@ CURRENT_YEAR = datetime.now().year
 def admin_only(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if current_user.id != 1 and current_user.id != 2:
+        if current_user.id != 1 or 2:
             return abort(403)
         return f(*args, **kwargs)
     return decorated_function
