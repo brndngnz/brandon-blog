@@ -1,8 +1,8 @@
-from flask import Flask, abort, render_template, redirect, url_for, flash
+from flask import Flask, abort, flash, render_template, redirect, request, url_for
 from flask_bootstrap import Bootstrap
 from flask_ckeditor import CKEditor
 from functools import wraps
-from datetime import date
+from datetime import date, datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import relationship
@@ -10,16 +10,31 @@ from flask_login import UserMixin, login_user, LoginManager, login_required, cur
 from forms import CommentForm, CreatePostForm, RegisterForm, LoginForm
 from flask_gravatar import Gravatar
 import os
+import smtplib
+
+# Constants
+EMAIL = "brndntestact@gmail.com"
+PASSWORD = "ynicmsypupapqpjp"
+CURRENT_YEAR = datetime.now().year
 
 
 # Admin-only decorator
 def admin_only(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if current_user.id != 1:
+        if current_user.id != 1 or current_user.id != 2:
             return abort(403)
         return f(*args, **kwargs)
     return decorated_function
+
+
+# Send Email using Contact Page
+def send_email(name, email, phone, message):
+    email_message = f"Subject:New Message\n\nName: {name}\nEmail: {email}\nPhone: {phone}\nMessage: {message}"
+    with smtplib.SMTP("smtp.gmail.com", 587) as connection:
+        connection.starttls()
+        connection.login(EMAIL, PASSWORD)
+        connection.sendmail(EMAIL, EMAIL, email_message)
 
 
 app = Flask(__name__)
@@ -84,13 +99,13 @@ class Comment(db.Model):
     text = db.Column(db.Text, nullable=False)
 
 
-db.create_all()
+# db.create_all()
 
 
 @app.route('/')
 def get_all_posts():
     posts = BlogPost.query.all()
-    return render_template("index.html", all_posts=posts, current_user=current_user)
+    return render_template("index.html", all_posts=posts, current_user=current_user, year=CURRENT_YEAR)
 
 
 @app.route('/register', methods=["GET", "POST"])
@@ -116,7 +131,7 @@ def register():
         db.session.commit()
         login_user(new_user)
         return redirect(url_for("get_all_posts"))
-    return render_template("register.html", form=form, current_user=current_user)
+    return render_template("register.html", form=form, current_user=current_user, year=CURRENT_YEAR)
 
 
 @app.route('/login', methods=["GET", "POST"])
@@ -137,7 +152,7 @@ def login():
         else:
             login_user(user)
             return redirect(url_for('get_all_posts'))
-    return render_template("login.html", form=form, current_user=current_user)
+    return render_template("login.html", form=form, current_user=current_user, year=CURRENT_YEAR)
 
 
 @app.route('/logout')
@@ -162,17 +177,21 @@ def show_post(post_id):
         db.session.add(new_comment)
         db.session.commit()
         return redirect(url_for('show_post', post_id=post_id))
-    return render_template("post.html", post=requested_post, form=form, current_user=current_user)
+    return render_template("post.html", post=requested_post, form=form, current_user=current_user, year=CURRENT_YEAR)
 
 
 @app.route("/about")
 def about():
-    return render_template("about.html", current_user=current_user)
+    return render_template("about.html", current_user=current_user, year=CURRENT_YEAR)
 
 
-@app.route("/contact")
+@app.route("/contact", methods=["GET", "POST"])
 def contact():
-    return render_template("contact.html", current_user=current_user)
+    if request.method == "POST":
+        data = request.form
+        send_email(data["name"], data["email"], data["phone"], data["message"])
+        return render_template("contact.html")
+    return render_template("contact.html", current_user=current_user, year=CURRENT_YEAR)
 
 
 @app.route("/new-post", methods=["GET", "POST"])
@@ -192,7 +211,7 @@ def add_new_post():
         db.session.add(new_post)
         db.session.commit()
         return redirect(url_for("get_all_posts"))
-    return render_template("make-post.html", form=form, current_user=current_user)
+    return render_template("make-post.html", form=form, current_user=current_user, year=CURRENT_YEAR)
 
 
 @app.route("/edit-post/<int:post_id>")
@@ -216,7 +235,7 @@ def edit_post(post_id):
         db.session.commit()
         return redirect(url_for("show_post", post_id=post.id))
 
-    return render_template("make-post.html", form=edit_form, current_user=current_user)
+    return render_template("make-post.html", form=edit_form, current_user=current_user, year=CURRENT_YEAR)
 
 
 @app.route("/delete/<int:post_id>")
