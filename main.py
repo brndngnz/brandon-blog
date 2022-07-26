@@ -13,8 +13,8 @@ import os
 import smtplib
 
 # Constants
-EMAIL = "brndntestact@gmail.com"
-PASSWORD = "ynicmsypupapqpjp"
+EMAIL = os.environ.get('EMAIL')
+PASSWORD = os.environ.get('PASSWORD')
 CURRENT_YEAR = datetime.now().year
 
 
